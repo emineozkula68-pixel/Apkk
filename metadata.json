@@ -1,0 +1,6 @@
+{
+  "name": "Cisim Dedektörü",
+  "description": "Yapay zeka destekli, ön ve arka kameradan anlık çoklu cisim algılayan ve yeşil dikdörtgen çerçevelerle koordinat çizen gelişmiş nesne tespit uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

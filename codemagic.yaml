@@ -1,0 +1,114 @@
+# Codemagic CI/CD configuration for Android
+# This file is highly optimized to build, verify, and compile Cisim Dedektörü on Codemagic.
+
+workflows:
+  android-debug:
+    name: Android Debug APK Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1 # Standard macOS build machine (or can be configured to linux_m1 if using Linux container)
+    environment:
+      groups:
+        - sdk_versions
+      vars:
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+        JAVA_VERSION: "17"
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+    scripts:
+      - name: Set up JDK 17
+        script: |
+          jdk-switch use 17
+      - name: Decode debug.keystore if available
+        script: |
+          if [ -f "debug.keystore.base64" ]; then
+            echo "Decoding debug.keystore from base64..."
+            base64 --decode debug.keystore.base64 > debug.keystore
+          elif [ ! -f "debug.keystore" ]; then
+            echo "Creating standard debug.keystore..."
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+      - name: Set up local.properties and environment config
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          # Create placeholder .env file if it doesn't exist to prevent compile errors
+          if [ ! -f ".env" ]; then
+            if [ -f ".env.example" ]; then
+              cp .env.example .env
+            else
+              touch .env
+            fi
+          fi
+      - name: Build Debug APK
+        script: |
+          # Generate Gradle wrapper if it's missing to ensure Codemagic can run gradlew
+          if [ ! -f "gradlew" ]; then
+            echo "Generating Gradle wrapper..."
+            gradle wrapper
+            chmod +x gradlew
+          fi
+          ./gradlew assembleDebug
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+    publishing:
+      email:
+        recipients:
+          - emineozkula68@gmail.com
+
+  android-release:
+    name: Android Release AAB/APK Build
+    max_build_duration: 45
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        # Define these variables inside Codemagic App settings > Environment variables
+        # - STORE_PASSWORD
+        # - KEY_PASSWORD
+        # - KEYSTORE_PATH
+        - release_credentials
+      vars:
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
+        JAVA_VERSION: "17"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+        - pattern: 'master'
+          include: true
+    scripts:
+      - name: Set up JDK 17
+        script: |
+          jdk-switch use 17
+      - name: Set up local.properties and environment config
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          if [ ! -f ".env" ]; then
+            if [ -f ".env.example" ]; then
+              cp .env.example .env
+            else
+              touch .env
+            fi
+          fi
+      - name: Build Release Bundle (AAB) & APK
+        script: |
+          if [ ! -f "gradlew" ]; then
+            echo "Generating Gradle wrapper..."
+            gradle wrapper
+            chmod +x gradlew
+          fi
+          # Build AAB first, then release APK
+          ./gradlew bundleRelease
+          ./gradlew assembleRelease
+    artifacts:
+      - app/build/outputs/bundle/release/*.aab
+      - app/build/outputs/apk/release/*.apk
+    publishing:
+      email:
+        recipients:
+          - emineozkula68@gmail.com
