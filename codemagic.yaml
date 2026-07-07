@@ -11,7 +11,7 @@ workflows:
         - sdk_versions
       vars:
         GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
-        JAVA_VERSION: "17"
+      java: 17
     triggering:
       events:
         - push
@@ -20,9 +20,6 @@ workflows:
         - pattern: '*'
           include: true
     scripts:
-      - name: Set up JDK 17
-        script: |
-          jdk-switch use 17
       - name: Decode debug.keystore if available
         script: |
           if [ -f "debug.keystore.base64" ]; then
@@ -72,7 +69,7 @@ workflows:
         - release_credentials
       vars:
         GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2048m"
-        JAVA_VERSION: "17"
+      java: 17
     triggering:
       events:
         - push
@@ -82,9 +79,6 @@ workflows:
         - pattern: 'master'
           include: true
     scripts:
-      - name: Set up JDK 17
-        script: |
-          jdk-switch use 17
       - name: Set up local.properties and environment config
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
