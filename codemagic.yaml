@@ -44,8 +44,8 @@ workflows:
         script: |
           # Generate Gradle wrapper if it's missing to ensure Codemagic can run gradlew
           if [ ! -f "gradlew" ]; then
-            echo "Generating Gradle wrapper..."
-            gradle wrapper
+            echo "Generating Gradle wrapper with version 9.3.1..."
+            gradle wrapper --gradle-version 9.3.1
             chmod +x gradlew
           fi
           ./gradlew assembleDebug
@@ -92,8 +92,8 @@ workflows:
       - name: Build Release Bundle (AAB) & APK
         script: |
           if [ ! -f "gradlew" ]; then
-            echo "Generating Gradle wrapper..."
-            gradle wrapper
+            echo "Generating Gradle wrapper with version 9.3.1..."
+            gradle wrapper --gradle-version 9.3.1
             chmod +x gradlew
           fi
           # Build AAB first, then release APK

@@ -391,6 +391,16 @@ fun ObjectDetectorHUD(onSpeak: (String) -> Unit) {
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
     LaunchedEffect(isFrontCamera, previewView) {
         val currentPreview = previewView ?: return@LaunchedEffect
+        
+        // Wait for 500ms to allow Android's AppOps permission state to fully propagate in the system
+        kotlinx.coroutines.delay(500)
+        
+        // Double check permission before attempting to access CameraX
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            Log.e("HUDCamera", "Camera permission is NOT granted inside LaunchedEffect.")
+            return@LaunchedEffect
+        }
+        
         val cameraProvider = context.getCameraProvider()
         val cameraLens = if (isFrontCamera) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
         val selector = CameraSelector.Builder().requireLensFacing(cameraLens).build()
