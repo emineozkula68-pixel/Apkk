@@ -325,6 +325,7 @@ fun ObjectDetectorHUD(onSpeak: (String) -> Unit) {
     var voiceAssistantEnabled by remember { mutableStateOf(true) }
     var coordinatesPercentMode by remember { mutableStateOf(false) }
     var isControlPanelExpanded by remember { mutableStateOf(true) }
+    var showUIOverlays by remember { mutableStateOf(true) }
 
     // Live Target Tracking Logs & Snapshots Archives
     var rawDetections by remember { mutableStateOf<List<RawDetection>>(emptyList()) }
@@ -498,104 +499,157 @@ fun ObjectDetectorHUD(onSpeak: (String) -> Unit) {
         }
 
         // 2. Neon HUD Bounding Boxes & Telemetry Render Layer
-        HUDOverlayCanvas(
-            rawDetections = rawDetections,
-            frameMetadata = frameMetadata,
-            laserTrackerEnabled = laserLinesEnabled,
-            coordinatesInPercent = coordinatesPercentMode,
-            currentFilter = activeFilter
-        )
+        if (showUIOverlays) {
+            HUDOverlayCanvas(
+                rawDetections = rawDetections,
+                frameMetadata = frameMetadata,
+                laserTrackerEnabled = laserLinesEnabled,
+                coordinatesInPercent = coordinatesPercentMode,
+                currentFilter = activeFilter
+            )
+        }
 
         // 3. Floating Custom Mode Panels (Filters & Category Selectors)
-        HUDSettingsSelectors(
-            activeFilter = activeFilter,
-            activeCategory = activeCategory,
-            onFilterChange = {
-                activeFilter = it
-                if (voiceAssistantEnabled) {
-                    val modeName = when (it) {
-                        VideoFilter.NORMAL -> "Normal Görüntü"
-                        VideoFilter.NIGHT_VISION -> "Gece Görüşü Filtresi"
-                        VideoFilter.CYBER_AMBER -> "Krom Kehribar Görüşü"
-                        VideoFilter.THERMAL_BLUE -> "Termal Spektrum Filtresi"
+        if (showUIOverlays) {
+            HUDSettingsSelectors(
+                activeFilter = activeFilter,
+                activeCategory = activeCategory,
+                onFilterChange = {
+                    activeFilter = it
+                    if (voiceAssistantEnabled) {
+                        val modeName = when (it) {
+                            VideoFilter.NORMAL -> "Normal Görüntü"
+                            VideoFilter.NIGHT_VISION -> "Gece Görüşü Filtresi"
+                            VideoFilter.CYBER_AMBER -> "Krom Kehribar Görüşü"
+                            VideoFilter.THERMAL_BLUE -> "Termal Spektrum Filtresi"
+                        }
+                        onSpeak("$modeName aktif.")
                     }
-                    onSpeak("$modeName aktif.")
-                }
-            },
-            onCategoryChange = {
-                activeCategory = it
-                if (voiceAssistantEnabled) {
-                    val catName = when (it) {
-                        TargetCategory.ALL -> "Tüm nesneler"
-                        TargetCategory.PEOPLE -> "Sadece insanlar"
-                        TargetCategory.ELECTRONICS -> "Sadece elektronik cihazlar"
-                        TargetCategory.FURNITURE -> "Sadece ev eşyaları"
-                        TargetCategory.OTHER -> "Diğer nesneler"
+                },
+                onCategoryChange = {
+                    activeCategory = it
+                    if (voiceAssistantEnabled) {
+                        val catName = when (it) {
+                            TargetCategory.ALL -> "Tüm nesneler"
+                            TargetCategory.PEOPLE -> "Sadece insanlar"
+                            TargetCategory.ELECTRONICS -> "Sadece elektronik cihazlar"
+                            TargetCategory.FURNITURE -> "Sadece ev eşyaları"
+                            TargetCategory.OTHER -> "Diğer nesneler"
+                        }
+                        onSpeak("$catName hedefleniyor.")
                     }
-                    onSpeak("$catName hedefleniyor.")
                 }
-            }
-        )
+            )
+        }
 
         // 4. Tech Action Buttons Control Dock (Top Right Overlay)
-        HUDQuickActionsDock(
-            isFrontCamera = isFrontCamera,
-            soundEnabled = audioFeedbackEnabled,
-            laserTrackerEnabled = laserLinesEnabled,
-            voiceEnabled = voiceAssistantEnabled,
-            onCameraToggle = { isFrontCamera = !isFrontCamera },
-            onSoundToggle = { audioFeedbackEnabled = !audioFeedbackEnabled },
-            onLaserToggle = { laserLinesEnabled = !laserLinesEnabled },
-            onVoiceToggle = { voiceAssistantEnabled = !voiceAssistantEnabled }
-        )
+        if (showUIOverlays) {
+            HUDQuickActionsDock(
+                isFrontCamera = isFrontCamera,
+                soundEnabled = audioFeedbackEnabled,
+                laserTrackerEnabled = laserLinesEnabled,
+                voiceEnabled = voiceAssistantEnabled,
+                onCameraToggle = { isFrontCamera = !isFrontCamera },
+                onSoundToggle = { audioFeedbackEnabled = !audioFeedbackEnabled },
+                onLaserToggle = { laserLinesEnabled = !laserLinesEnabled },
+                onVoiceToggle = { voiceAssistantEnabled = !voiceAssistantEnabled }
+            )
+        }
 
         // 5. Tech System Telemetry Display (Top Left Overlay)
-        HUDStatsPanel(
-            activeTargetsCount = rawDetections.size,
-            fps = fpsValue,
-            confidenceThreshold = confidenceThreshold,
-            filterMode = activeFilter
-        )
+        if (showUIOverlays) {
+            HUDStatsPanel(
+                activeTargetsCount = rawDetections.size,
+                fps = fpsValue,
+                confidenceThreshold = confidenceThreshold,
+                filterMode = activeFilter
+            )
+        }
 
         // 6. Cybernetic Analysis Drawer & Saved Snapshots Archive List (At Bottom)
-        HUDControlPanel(
+        if (showUIOverlays) {
+            HUDControlPanel(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                rawDetections = rawDetections,
+                confidenceThreshold = confidenceThreshold,
+                coordinatesInPercent = coordinatesPercentMode,
+                isPanelExpanded = isControlPanelExpanded,
+                snapshots = snapshotsList,
+                onThresholdChange = { confidenceThreshold = it },
+                onCoordinatesToggle = { coordinatesPercentMode = it },
+                onPanelToggle = { isControlPanelExpanded = !isControlPanelExpanded },
+                onCaptureSnapshot = {
+                    val currentTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                    val newSnapshot = TelemetrySnapshot(
+                        timestamp = currentTime,
+                        targetsCount = rawDetections.size,
+                        details = rawDetections.map { "${translateLabel(it.label)} (${(it.confidence * 100).roundToInt()}% @ [X: ${it.rect.centerX()}, Y: ${it.rect.centerY()}])" },
+                        filterMode = activeFilter
+                    )
+                    snapshotsList = (listOf(newSnapshot) + snapshotsList).take(15) // Keep last 15
+                    if (voiceAssistantEnabled) {
+                        onSpeak("Telemetri verisi kara kutuya kaydedildi.")
+                    }
+                    try {
+                        toneGenerator?.startTone(ToneGenerator.TONE_SUP_CONFIRM, 120)
+                    } catch (e: Exception) {
+                        Log.e("Tone", "Capture alert failed", e)
+                    }
+                },
+                onClearLogs = {
+                    snapshotsList = emptyList()
+                    if (voiceAssistantEnabled) {
+                        onSpeak("Kara kutu arşivi temizlendi.")
+                    }
+                }
+            )
+        }
+
+        // 7. Futuristic Toggle HUD Visibility Button (Top Center Overlay)
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(16.dp),
-            rawDetections = rawDetections,
-            confidenceThreshold = confidenceThreshold,
-            coordinatesInPercent = coordinatesPercentMode,
-            isPanelExpanded = isControlPanelExpanded,
-            snapshots = snapshotsList,
-            onThresholdChange = { confidenceThreshold = it },
-            onCoordinatesToggle = { coordinatesPercentMode = it },
-            onPanelToggle = { isControlPanelExpanded = !isControlPanelExpanded },
-            onCaptureSnapshot = {
-                val currentTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-                val newSnapshot = TelemetrySnapshot(
-                    timestamp = currentTime,
-                    targetsCount = rawDetections.size,
-                    details = rawDetections.map { "${translateLabel(it.label)} (${(it.confidence * 100).roundToInt()}% @ [X: ${it.rect.centerX()}, Y: ${it.rect.centerY()}])" },
-                    filterMode = activeFilter
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(HudBgTranslucent)
+                    .border(
+                        1.5.dp,
+                        if (showUIOverlays) HudNeonRed.copy(alpha = 0.7f) else HudNeonGreen,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .clickable {
+                        showUIOverlays = !showUIOverlays
+                        if (voiceAssistantEnabled) {
+                            onSpeak(if (showUIOverlays) "Arayüz panelleri aktif edildi." else "Temiz ekran modu aktif edildi.")
+                        }
+                    }
+                    .defaultMinSize(minHeight = 40.dp)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (showUIOverlays) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                    contentDescription = if (showUIOverlays) "HUD'u Gizle" else "HUD'u Göster",
+                    tint = if (showUIOverlays) HudNeonRed else HudNeonGreen,
+                    modifier = Modifier.size(16.dp)
                 )
-                snapshotsList = (listOf(newSnapshot) + snapshotsList).take(15) // Keep last 15
-                if (voiceAssistantEnabled) {
-                    onSpeak("Telemetri verisi kara kutuya kaydedildi.")
-                }
-                try {
-                    toneGenerator?.startTone(ToneGenerator.TONE_SUP_CONFIRM, 120)
-                } catch (e: Exception) {
-                    Log.e("Tone", "Capture alert failed", e)
-                }
-            },
-            onClearLogs = {
-                snapshotsList = emptyList()
-                if (voiceAssistantEnabled) {
-                    onSpeak("Kara kutu arşivi temizlendi.")
-                }
+                Text(
+                    text = if (showUIOverlays) "HUD GİZLE" else "HUD GÖSTER",
+                    color = if (showUIOverlays) HudNeonRed else HudNeonGreen,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                )
             }
-        )
+        }
     }
 }
 
